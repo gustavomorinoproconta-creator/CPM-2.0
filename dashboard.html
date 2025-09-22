@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Busca • App</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="style.css?v=9">
+</head>
+<body data-page="app">
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="assets/logo.png" alt="Logo" onerror="this.style.display='none'">
+      <strong>🔎 Busca</strong>
+    </div>
+    <nav>
+      <span id="who"></span>
+      <button id="btnLogout" class="btn">Sair</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- NOVO REGISTRO -->
+    <section class="card">
+      <h2>Novo registro</h2>
+      <div class="grid">
+        <div class="field">
+          <label>CPM (ID do item)</label>
+          <input id="novoCPM" placeholder="Ex.: CPM-01" />
+        </div>
+
+        <div class="field">
+          <label>Status</label>
+          <select id="novoStatus">
+            <option>ONLINE</option>
+            <option>EM ESTOQUE</option>
+            <option>EM MANUTENÇÃO</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Data de fabricação</label>
+          <input id="novoDataFab" type="date" />
+        </div>
+
+        <div class="field">
+          <label>Senha do cadeado</label>
+          <input id="novoSenhaCadeado" placeholder="Ex.: 1234" />
+        </div>
+
+        <div class="field">
+          <label>Login Modem (CLARO)</label>
+          <input id="novoModemLogin" placeholder="login" />
+        </div>
+
+        <div class="field">
+          <label>Senha Modem (CLARO)</label>
+          <input id="novoModemSenha" placeholder="senha" />
+        </div>
+
+        <div class="field">
+          <label>Número do chip</label>
+          <input id="novoNumeroChip" placeholder="ICCID ou telefone" />
+        </div>
+
+        <div class="field field-full">
+          <label>Observações (opcional)</label>
+          <textarea id="novoDescricao" rows="3"></textarea>
+        </div>
+
+        <div class="field field-full">
+          <label>Fotos (até 5) — você pode remover antes de salvar</label>
+          <input id="fotos" type="file" accept="image/*" multiple />
+          <small class="muted">Selecione até 5 imagens (PNG/JPG). Clique no “×” para remover uma foto da seleção.</small>
+          <div id="preview" class="thumbs" style="margin-top:.5rem;"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="btnCriar">Salvar</button>
+        <span id="criadoMsg" class="muted"></span>
+      </div>
+    </section>
+
+    <!-- BUSCAR POR CPM -->
+    <section class="card">
+      <h2>Buscar por CPM</h2>
+      <div class="grid">
+        <div class="field">
+          <label>CPM</label>
+          <input id="buscaCPM" placeholder="Ex.: CPM-01" />
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="btnBuscar" class="btn">Buscar</button>
+        </div>
+      </div>
+      <pre id="resultado" class="result"></pre>
+    </section>
+
+    <!-- LISTA -->
+    <section class="card">
+      <h2>Registros</h2>
+
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <input id="buscaLista" placeholder="Buscar (CPM, observações)..." />
+          <select id="filtroStatusLista" title="Filtrar status">
+            <option>Todos</option>
+            <option>ONLINE</option>
+            <option>EM ESTOQUE</option>
+            <option>EM MANUTENÇÃO</option>
+          </select>
+          <select id="ordenarPor" title="Ordenar por">
+            <option value="data_desc">Data (mais recente)</option>
+            <option value="data_asc">Data (mais antigo)</option>
+            <option value="cpm_asc">CPM (A → Z)</option>
+            <option value="cpm_desc">CPM (Z → A)</option>
+          </select>
+          <button class="btn" id="btnAtualizar">Atualizar</button>
+        </div>
+        <div class="toolbar-right">
+          <button class="btn" id="exportCsv">Exportar CSV</button>
+        </div>
+      </div>
+
+      <ul id="lista" class="list"></ul>
+    </section>
+  </main>
+
+  <!-- Modal Exportação -->
+  <dialog id="exportModal" class="modal">
+    <form method="dialog" class="card" style="min-width:min(780px,96vw);">
+      <h2>⚙️ Opções de exportação</h2>
+
+      <div class="grid">
+        <div class="field field-full">
+          <label>Colunas</label>
+          <div style="display:flex; gap:12px; flex-wrap:wrap">
+            <label><input type="checkbox" class="exp-col" value="cpm" checked> CPM</label>
+            <label><input type="checkbox" class="exp-col" value="status" checked> Status</label>
+            <label><input type="checkbox" class="exp-col" value="dataFabricacao"> Data fabricação</label>
+            <label><input type="checkbox" class="exp-col" value="senhaCadeado"> Senha cadeado</label>
+            <label><input type="checkbox" class="exp-col" value="modemLogin"> Login modem</label>
+            <label><input type="checkbox" class="exp-col" value="modemSenha"> Senha modem</label>
+            <label><input type="checkbox" class="exp-col" value="numeroChip"> Nº chip</label>
+            <label><input type="checkbox" class="exp-col" value="observacoes"> Observações</label>
+            <label><input type="checkbox" class="exp-col" value="email"> E-mail</label>
+            <label><input type="checkbox" class="exp-col" value="criadoEm" checked> Criado em</label>
+            <label><input type="checkbox" class="exp-col" value="fotos"> Fotos</label>
+          </div>
+          <div style="margin-top:.5rem">
+            <button type="button" class="btn" id="expToggle">Marcar/Desmarcar todas</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Quantidade (máx.)</label>
+          <input id="expQtd" type="number" min="1" max="5000" value="500" />
+        </div>
+
+        <div class="field">
+          <label>Status</label>
+          <select id="expStatus">
+            <option>Todos</option>
+            <option>ONLINE</option>
+            <option>EM ESTOQUE</option>
+            <option>EM MANUTENÇÃO</option>
+          </select>
+        </div>
+
+        <div class="field field-full">
+          <label>Somente estes CPMs (opcional; um por linha)</label>
+          <textarea id="expCpms" rows="4" placeholder="CPM-01&#10;CPM-02"></textarea>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn primary" id="expConfirm">Gerar CSV</button>
+        <button class="btn ghost" id="expCancel">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal Editar -->
+  <dialog id="editModal" class="modal">
+    <form method="dialog" class="card" style="min-width:min(900px,96vw);">
+      <h2>✏️ Editar registro</h2>
+      <input type="hidden" id="editCPM" />
+      <div class="grid">
+        <div class="field">
+          <label>CPM</label>
+          <input id="editCPMShown" disabled />
+        </div>
+
+        <div class="field">
+          <label>Status</label>
+          <select id="editStatus">
+            <option>ONLINE</option>
+            <option>EM ESTOQUE</option>
+            <option>EM MANUTENÇÃO</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Data de fabricação</label>
+          <input id="editDataFab" type="date" />
+        </div>
+
+        <div class="field">
+          <label>Senha do cadeado</label>
+          <input id="editSenhaCadeado" />
+        </div>
+
+        <div class="field">
+          <label>Login Modem (CLARO)</label>
+          <input id="editModemLogin" />
+        </div>
+
+        <div class="field">
+          <label>Senha Modem (CLARO)</label>
+          <input id="editModemSenha" />
+        </div>
+
+        <div class="field">
+          <label>Número do chip</label>
+          <input id="editNumeroChip" />
+        </div>
+
+        <div class="field field-full">
+          <label>Observações</label>
+          <textarea id="editObservacoes" rows="3"></textarea>
+        </div>
+
+        <div class="field field-full">
+          <label>Fotos atuais</label>
+          <div id="editFotosExistentes" class="thumbs"></div>
+          <small class="muted">Clique no 🗑️ para remover do registro (seu Apps Script pode também apagar do Drive).</small>
+        </div>
+
+        <div class="field field-full">
+          <label>Adicionar novas fotos (até 5 no total)</label>
+          <input id="editNovasFotos" type="file" accept="image/*" multiple />
+          <div id="editPreviewNovas" class="thumbs" style="margin-top:.5rem;"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn primary" id="salvarEdicao">Salvar</button>
+        <button class="btn ghost" value="cancel">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js?v=9"></script>
+</body>
+</html>
