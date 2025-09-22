@@ -1,0 +1,88 @@
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#e6e9ef}
+
+/* Tema escuro */
+:root{
+  --bg1:#0b1220; --bg2:#0e1629;
+  --muted:#9aa4b2;
+  --brand:#6aa3ff; --brand-2:#7c5cff;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+  --radius:16px;
+}
+
+/* Fundo com gradientes */
+.auth-bg{
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(124,92,255,.25), transparent 60%),
+    radial-gradient(900px 500px at 85% -10%, rgba(106,163,255,.22), transparent 55%),
+    var(--bg1);
+}
+
+/* Barra de marca */
+.brandbar{
+  position:sticky;top:0;z-index:10;
+  backdrop-filter:blur(12px);
+  background:linear-gradient(180deg, rgba(14,22,41,.7), rgba(14,22,41,.25));
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.brand{max-width:1100px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;gap:12px}
+.brand-logo{width:36px;height:36px;border-radius:10px;object-fit:cover;box-shadow:0 6px 14px rgba(0,0,0,.35)}
+.brand-text{display:grid;line-height:1.05}
+.brand-text strong{font-weight:800}
+.brand-text span{color:var(--muted);font-size:.9rem}
+
+/* Wrapper + Card */
+.auth-wrapper{min-height:calc(100dvh - 70px);display:grid;place-items:center;padding:32px 16px}
+.auth-card{
+  width:100%;max-width:560px;
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.04));
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:var(--shadow);border-radius:var(--radius);
+  padding:32px 28px;
+}
+.auth-head h1{margin:0 0 6px;font-size:1.6rem;font-weight:800}
+.muted{color:var(--muted)}
+
+/* Abas */
+.segmented{
+  margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:6px;
+  background:rgba(255,255,255,.06);padding:6px;border-radius:12px;border:1px solid rgba(255,255,255,.08)
+}
+.seg-btn{appearance:none;border:0;padding:10px 12px;border-radius:10px;background:transparent;color:#dfe6ef;font-weight:700;cursor:pointer}
+.seg-btn.active{
+  background:linear-gradient(180deg, rgba(122,162,255,.25), rgba(122,162,255,.12));
+  border:1px solid rgba(122,162,255,.35);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)
+}
+
+/* Form */
+.auth-form{margin-top:18px;display:grid;gap:14px}
+.field{display:grid;gap:8px}
+.field span{color:var(--muted)}
+.field input{
+  height:46px;padding:0 14px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);color:#fff;outline:none
+}
+.field input::placeholder{color:#a8b2bf}
+
+.auth-msg{
+  background:rgba(255,92,92,.12);border:1px solid rgba(255,92,92,.35);
+  color:#ffd3d3;padding:10px 12px;border-radius:10px;font-size:.95rem
+}
+
+/* Botões */
+.actions{display:grid;gap:10px;margin-top:6px}
+.btn{
+  display:inline-flex;gap:8px;align-items:center;justify-content:center;
+  height:46px;border:0;border-radius:10px;padding:0 16px;font-weight:800;cursor:pointer
+}
+.btn.primary{
+  color:#0e1629;background:linear-gradient(90deg, var(--brand), var(--brand-2));
+  box-shadow:0 8px 18px rgba(106,163,255,.28)
+}
+.btn.ghost{background:rgba(255,255,255,.06);color:#dfe6ef;border:1px solid rgba(255,255,255,.08)}
+
+/* Rodapé */
+.auth-foot{margin-top:18px;display:flex;justify-content:center;color:var(--muted)}

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Acesso • CPM</title>
+  <link rel="icon" href="assets/logo.png" />
+  <link rel="stylesheet" href="style.css?v=14" />
+</head>
+<body class="auth-bg">
+
+  <!-- Barra com logo -->
+  <header class="brandbar">
+    <div class="brand">
+      <img src="assets/logo.png" alt="Logo" class="brand-logo" />
+      <div class="brand-text">
+        <strong>Safári Diversão • TI</strong>
+        <span>Portal CPM</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="auth-wrapper">
+    <section class="auth-card" data-mode="login">
+      <div class="auth-head">
+        <h1>Bem-vindo</h1>
+        <p class="muted">Acesse com seu e-mail e senha.</p>
+      </div>
+
+      <div class="segmented" role="tablist" aria-label="Modo de acesso">
+        <button id="tabLogin" class="seg-btn active" role="tab" aria-selected="true">Entrar</button>
+        <button id="tabRegister" class="seg-btn" role="tab" aria-selected="false">Criar conta</button>
+      </div>
+
+      <form class="auth-form" onsubmit="return false;">
+        <label class="field">
+          <span>E-mail</span>
+          <input id="email" type="email" autocomplete="email" placeholder="voce@empresa.com.br" required />
+        </label>
+
+        <label class="field">
+          <span>Senha</span>
+          <input id="senha" type="password" autocomplete="current-password" placeholder="••••••••" required />
+        </label>
+
+        <div id="authMsg" class="auth-msg" hidden></div>
+
+        <div class="actions">
+          <button id="btnLogin" class="btn primary">Entrar</button>
+          <button id="btnRegister" class="btn primary" style="display:none;">Criar conta</button>
+          <button id="btnReset" class="btn ghost" style="justify-self:start;">Esqueci a senha</button>
+        </div>
+      </form>
+
+      <footer class="auth-foot">
+        <small>© <span id="year"></span> Safári Diversão • TI</small>
+      </footer>
+    </section>
+  </main>
+
+  <!-- sua lógica de auth -->
+  <script type="module" src="app.js?v=14"></script>
+
+  <!-- trocar abas -->
+  <script>
+    (() => {
+      const card = document.querySelector('.auth-card');
+      const tabLogin = document.getElementById('tabLogin');
+      const tabRegister = document.getElementById('tabRegister');
+      const btnLogin = document.getElementById('btnLogin');
+      const btnRegister = document.getElementById('btnRegister');
+      const msg = document.getElementById('authMsg');
+
+      function setMode(mode){
+        card.dataset.mode = mode;
+        const isLogin = mode === 'login';
+        tabLogin.classList.toggle('active', isLogin);
+        tabRegister.classList.toggle('active', !isLogin);
+        tabLogin.setAttribute('aria-selected', String(isLogin));
+        tabRegister.setAttribute('aria-selected', String(!isLogin));
+        btnLogin.style.display = isLogin ? '' : 'none';
+        btnRegister.style.display = isLogin ? 'none' : '';
+        if(msg){ msg.hidden = true; msg.textContent=''; }
+      }
+      tabLogin?.addEventListener('click', () => setMode('login'));
+      tabRegister?.addEventListener('click', () => setMode('register'));
+      document.getElementById('year').textContent = new Date().getFullYear();
+      setMode('login');
+    })();
+  </script>
+</body>
+</html>
