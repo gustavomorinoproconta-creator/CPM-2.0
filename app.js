@@ -2,7 +2,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword,
-  createUserWithEmailAndPassword, signOut, sendPasswordResetEmail
+  createUserWithEmailAndPassword, signOut, sendPasswordResetEmail, setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
@@ -29,8 +29,22 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
+// manter sessão logada
+setPersistence(auth, browserLocalPersistence).catch(console.error);
+
 const $ = (s) => document.querySelector(s);
-const toast = (t) => { const el = document.querySelector('#msg'); if (el) { el.textContent = t; setTimeout(()=> el.textContent='', 3000); } };
+
+// toast: usa #authMsg se existir; senão #msg
+function toast(text, ok=false){
+  const el = document.querySelector('#authMsg') || document.querySelector('#msg');
+  if(!el) return;
+  el.hidden = false;
+  el.textContent = text;
+  el.style.background = ok ? "rgba(80,200,120,.12)" : "rgba(255,92,92,.12)";
+  el.style.border     = ok ? "1px solid rgba(80,200,120,.35)" : "1px solid rgba(255,92,92,.35)";
+  // some após 4s se for sucesso
+  if (ok) setTimeout(()=>{ el.hidden = true; el.textContent=''; }, 4000);
+}
 
 /* ===== Helpers ===== */
 function formatTs(ts){
@@ -48,10 +62,10 @@ function ymdToInput(isoOrYmd){
 /* ====== Máscara para Número do Chip/ICCID ====== */
 function maskNumeroChip(value){
   const digits = String(value||'').replace(/\D/g,'');
-  if (digits.startsWith('89') && digits.length >= 15){ // ICCID geralmente 19-22
-    return digits.replace(/(\d{4})(?=\d)/g,'$1 ').trim(); // grupos de 4
+  if (digits.startsWith('89') && digits.length >= 15){ // ICCID 19-22 (aqui só formatação de grupos)
+    return digits.replace(/(\d{4})(?=\d)/g,'$1 ').trim();
   }
-  if (digits.length >= 11){ // celular BR
+  if (digits.length >= 11){
     const d = digits.slice(0,11);
     return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`;
   }
@@ -59,7 +73,6 @@ function maskNumeroChip(value){
     const d = digits.slice(0,10);
     return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6,10)}`;
   }
-  // fallback: agrupa de 4
   return digits.replace(/(\d{4})(?=\d)/g,'$1 ').trim();
 }
 
@@ -239,31 +252,64 @@ async function obterDadosParaExportar({cpms, status, qtd}){
 }
 
 /* ===== LOGIN PAGE ===== */
+let _authInitDone = false;
 function initAuth(){
+  if (_authInitDone) return;
+  _authInitDone = true;
+
+  // abas (não quebra se não existir #paneLogin/#paneRegister)
   $('#tabLogin')?.addEventListener('click', ()=>{
-    $('#tabLogin').classList.add('active');
-    $('#tabRegister').classList.remove('active');
-    $('#paneLogin').hidden=false; $('#paneRegister').hidden=true;
+    $('#tabLogin')?.classList.add('active');
+    $('#tabRegister')?.classList.remove('active');
+    const paneLogin = $('#paneLogin'), paneRegister = $('#paneRegister');
+    if (paneLogin && paneRegister){ paneLogin.hidden=false; paneRegister.hidden=true; }
   });
   $('#tabRegister')?.addEventListener('click', ()=>{
-    $('#tabRegister').classList.add('active');
-    $('#tabLogin').classList.remove('active');
-    $('#paneRegister').hidden=false; $('#paneLogin').hidden=true;
+    $('#tabRegister')?.classList.add('active');
+    $('#tabLogin')?.classList.remove('active');
+    const paneLogin = $('#paneLogin'), paneRegister = $('#paneRegister');
+    if (paneLogin && paneRegister){ paneRegister.hidden=false; paneLogin.hidden=true; }
   });
 
+  // pega email/senha independente dos IDs (compat: #email/#senha OU #loginEmail/#loginPass / #regEmail/#regPass)
+  const getLoginEmail = () => ($('#email')?.value || $('#loginEmail')?.value || '').trim();
+  const getLoginPass  = () => ($('#senha')?.value  || $('#loginPass')?.value  || '').trim();
+  const getRegEmail   = () => ($('#email')?.value || $('#regEmail')?.value   || '').trim();
+  const getRegPass    = () => ($('#senha')?.value || $('#regPass')?.value    || '').trim();
+
+  // Entrar
   $('#btnLogin')?.addEventListener('click', async ()=>{
-    try{ await signInWithEmailAndPassword(auth, $('#loginEmail').value, $('#loginPass').value); }
-    catch(e){ toast('Falha ao entrar: '+e.message); }
-  });
-  $('#btnReset')?.addEventListener('click', async ()=>{
-    try{ await sendPasswordResetEmail(auth, $('#loginEmail').value); toast('Link enviado.'); }
-    catch(e){ toast('Erro: '+e.message); }
-  });
-  $('#btnRegister')?.addEventListener('click', async ()=>{
-    try{ await createUserWithEmailAndPassword(auth, $('#regEmail').value, $('#regPass').value); }
-    catch(e){ toast('Erro ao registrar: '+e.message); }
+    try{
+      const email = getLoginEmail(), pass = getLoginPass();
+      if(!email || !pass) return toast('Preencha e-mail e senha.');
+      await signInWithEmailAndPassword(auth, email, pass);
+      toast('Login OK!', true);
+      location.href='dashboard.html';
+    }catch(e){ console.error(e); toast('Falha ao entrar: '+(e.code||e.message)); }
   });
 
+  // Reset de senha
+  $('#btnReset')?.addEventListener('click', async ()=>{
+    try{
+      const email = getLoginEmail();
+      if(!email) return toast('Digite seu e-mail para receber o link.');
+      await sendPasswordResetEmail(auth, email);
+      toast('Enviamos um link de redefinição para seu e-mail.', true);
+    }catch(e){ console.error(e); toast('Erro: '+(e.code||e.message)); }
+  });
+
+  // Criar conta
+  $('#btnRegister')?.addEventListener('click', async ()=>{
+    try{
+      const email = getRegEmail(), pass = getRegPass();
+      if(!email || !pass) return toast('Informe e-mail e senha.');
+      await createUserWithEmailAndPassword(auth, email, pass);
+      toast('Conta criada! Entrando…', true);
+      location.href='dashboard.html';
+    }catch(e){ console.error(e); toast('Erro ao registrar: '+(e.code||e.message)); }
+  });
+
+  // Se já logado, vai pro dashboard
   onAuthStateChanged(auth, (user)=>{ if (user) location.href='dashboard.html'; });
 }
 
@@ -339,7 +385,11 @@ function aplicarFiltrosOrdenacao(arr){
 }
 
 /* ===== DASHBOARD ===== */
+let _appInitDone = false;
 function initApp(){
+  if (_appInitDone) return;
+  _appInitDone = true;
+
   // seleção no cadastro
   $('#fotos')?.addEventListener('change', ()=> addToSelection($('#fotos').files));
 
@@ -444,7 +494,7 @@ function initApp(){
         senhaCadeado, modemLogin, modemSenha, numeroChip,
         uid: user.uid, email: user.email
       });
-      const msg = $('#criadoMsg'); if (msg) msg.textContent = `✅ Salvo: ${id}`;
+      const ok = $('#criadoMsg'); if (ok) ok.textContent = `✅ Salvo: ${id}`;
       // limpa form + seleção
       $('#novoCPM').value='';
       $('#novoDescricao').value='';
@@ -558,6 +608,11 @@ function renderLista(arr){
 }
 
 /* ===== Boot ===== */
-const page = document.body.dataset.page;
-if(page==='auth') initAuth();
-if(page==='app')  initApp();
+const page = document.body?.dataset?.page || '';
+// inicialização robusta: roda se tiver indicador OU se detectar elementos de cada tela
+if (page === 'auth' || document.getElementById('btnLogin') || document.getElementById('btnRegister')) {
+  initAuth();
+}
+if (page === 'app' || document.getElementById('lista') || document.getElementById('btnCriar')) {
+  initApp();
+}
