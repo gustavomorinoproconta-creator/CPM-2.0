@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0f1722" />
+  <title>Portal CPM — Acesso</title>
+  <link rel="icon" href="assets/logo.png" />
+
+  <style>
+    *{box-sizing:border-box}html,body{height:100%}
+    :root{
+      --bg:#0f1722;
+      --card:#111b29;
+      --muted:#a9b4c3;
+      --text:#e6e9ef;
+      --stroke:rgba(255,255,255,.07);
+      --primary:#3b66ff;
+      --primary-2:#3159eb;
+      --input:#0c1420;
+    }
+    body{
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    /* header fixo com logo no topo esquerdo */
+    .site-header{
+      position:fixed; inset:auto auto auto 16px; top:16px; left:16px;
+      display:flex; align-items:center; gap:10px;
+      z-index:10;
+      user-select:none;
+    }
+    .site-header img{
+      width:44px; height:44px; border-radius:10px;
+      box-shadow:0 8px 24px rgba(0,0,0,.35)
+    }
+    .site-header .title{
+      font-weight:800; letter-spacing:.2px; line-height:1.1; font-size:14px;
+    }
+    .site-header .subtitle{
+      color:var(--muted); font-size:12px; display:block; margin-top:2px;
+    }
+
+    /* crédito fixo no canto inferior esquerdo */
+    .credit{
+      position:fixed; left:16px; bottom:12px; z-index:10;
+      color:var(--muted); font-size:12px; opacity:.9;
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--stroke);
+      padding:6px 10px; border-radius:8px;
+      backdrop-filter: blur(6px);
+    }
+
+    .auth-wrap{
+      min-height:100dvh;
+      display:grid;
+      place-items:center;
+      padding:24px 12px;
+    }
+    .card{
+      width:min(560px, 94vw);
+      background:var(--card);
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      padding:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+
+    .heading{
+      font-size:20px; font-weight:800; margin:0 0 8px;
+      letter-spacing:.2px;
+    }
+    .muted{ color:var(--muted) }
+
+    .tabs{ display:flex; gap:10px; margin:12px 0 18px }
+    .tab{
+      flex:1; text-align:center; cursor:pointer;
+      border:1px solid var(--stroke);
+      background:#142034; color:var(--text);
+      padding:10px 12px; border-radius:10px; font-weight:700;
+    }
+    .tab.active{ background:var(--primary); border-color:var(--primary) }
+
+    .field{ display:flex; flex-direction:column; gap:6px; margin:10px 0 }
+    label{ font-size:12px; color:var(--muted) }
+    input{
+      width:100%; padding:12px 14px; border-radius:12px;
+      border:1px solid var(--stroke); outline:none;
+      background:var(--input); color:var(--text);
+    }
+    input:focus{ border-color:var(--primary); box-shadow:0 0 0 3px rgba(59,102,255,.15) }
+
+    .actions{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap }
+    .btn{
+      cursor:pointer; border:1px solid var(--stroke);
+      background:#1a2433; color:var(--text);
+      padding:10px 14px; border-radius:10px; font-weight:700;
+    }
+    .btn:hover{ background:#202c3d }
+    .btn.primary{ background:var(--primary); border-color:var(--primary) }
+    .btn.primary:hover{ background:var(--primary-2) }
+
+    .msg{ min-height:18px; color:#9eb7ff; font-weight:600; margin:6px 0 0 }
+    .foot{ margin-top:12px; text-align:center; color:var(--muted); font-size:12px }
+    .hidden{ display:none }
+  </style>
+</head>
+<body data-page="auth">
+  <!-- Header com logo/identidade -->
+  <header class="site-header" aria-label="Identidade do sistema">
+    <img src="assets/logo.png" alt="Logo" />
+    <div class="title">
+      Safári Diversão • TI
+      <span class="subtitle">Portal CPM</span>
+    </div>
+  </header>
+
+  <!-- Crédito no canto inferior esquerdo -->
+  <div class="credit">by <strong>Gustavo Morino</strong></div>
+
+  <main class="auth-wrap">
+    <section class="card" aria-label="Cartão de acesso">
+      <h1 class="heading">Acesso</h1>
+      <p class="muted" style="margin:0 0 6px">Entre com seu e-mail e senha.</p>
+
+      <div class="tabs" role="tablist">
+        <button id="tabLogin" class="tab active" role="tab" aria-selected="true">Entrar</button>
+        <button id="tabRegister" class="tab" role="tab" aria-selected="false">Criar conta</button>
+      </div>
+
+      <!-- PANE LOGIN -->
+      <div id="paneLogin" role="tabpanel">
+        <div class="field">
+          <label for="loginEmail">E-mail</label>
+          <input id="loginEmail" type="email" placeholder="voce@empresa.com.br" />
+        </div>
+        <div class="field">
+          <label for="loginPass">Senha</label>
+          <input id="loginPass" type="password" placeholder="••••••••" />
+        </div>
+        <div class="actions">
+          <button id="btnLogin" class="btn primary">Entrar</button>
+          <button id="btnReset" class="btn">Esqueci a senha</button>
+        </div>
+      </div>
+
+      <!-- PANE REGISTER -->
+      <div id="paneRegister" class="hidden" role="tabpanel" aria-hidden="true">
+        <div class="field">
+          <label for="regEmail">E-mail</label>
+          <input id="regEmail" type="email" placeholder="voce@empresa.com.br" />
+        </div>
+        <div class="field">
+          <label for="regPass">Senha</label>
+          <input id="regPass" type="password" placeholder="Crie uma senha" />
+        </div>
+        <div class="actions">
+          <button id="btnRegister" class="btn primary">Criar conta</button>
+          <button class="btn" onclick="document.getElementById('tabLogin').click()">Voltar</button>
+        </div>
+      </div>
+
+      <div id="msg" class="msg"></div>
+      <div class="foot">© <span id="year"></span> Safári Diversão • TI</div>
+    </section>
+  </main>
+
+  <script>
+    // ano no rodapé
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // toggle inicial (também é reforçado pelo app.js)
+    const tLogin = document.getElementById('tabLogin');
+    const tReg   = document.getElementById('tabRegister');
+    const pLogin = document.getElementById('paneLogin');
+    const pReg   = document.getElementById('paneRegister');
+
+    tLogin?.addEventListener('click', ()=>{
+      tLogin.classList.add('active'); tReg.classList.remove('active');
+      pLogin.classList.remove('hidden'); pReg.classList.add('hidden');
+      tLogin.setAttribute('aria-selected','true'); tReg.setAttribute('aria-selected','false');
+      pLogin.removeAttribute('aria-hidden'); pReg.setAttribute('aria-hidden','true');
+    });
+    tReg?.addEventListener('click', ()=>{
+      tReg.classList.add('active'); tLogin.classList.remove('active');
+      pReg.classList.remove('hidden'); pLogin.classList.add('hidden');
+      tReg.setAttribute('aria-selected','true'); tLogin.setAttribute('aria-selected','false');
+      pReg.removeAttribute('aria-hidden'); pLogin.setAttribute('aria-hidden','true');
+    });
+  </script>
+
+  <!-- Seu JS com Firebase/Auth -->
+  <script type="module" src="app.js?v=27"></script>
+</body>
+</html>
