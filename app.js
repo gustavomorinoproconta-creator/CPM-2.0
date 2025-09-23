@@ -1,12 +1,11 @@
-// app.js — Firebase + fotos via Apps Script + filtros/ordenação + máscara chip
+// app.js — Firebase + fotos via Apps Script + filtros/ordenação + máscara chip (offline-safe)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword,
   createUserWithEmailAndPassword, signOut, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  // >>> IMPORTS atualizados para suportar cache/offline
-  getFirestore, initializeFirestore, enableIndexedDbPersistence,
+  initializeFirestore, getFirestore, enableIndexedDbPersistence,
   doc, getDoc, getDocFromCache,
   setDoc, updateDoc, deleteDoc,
   collection, query, orderBy, limit, getDocs, getDocsFromCache,
@@ -23,25 +22,23 @@ const firebaseConfig = {
   appId: "1:555386432094:web:7e875f76d3af72f7cde2cf",
   measurementId: "G-00JGPVTHF8"
 };
-/* ================================== */
 
 /* ===== URL do Apps Script (UPLOAD/DELETE) ===== */
 const UPLOAD_API_URL = 'https://script.google.com/macros/s/AKfycbyJSWFHxusn4q6kuWc2CFCIzJ2vhE5bXEEwoIQRzykb8CVfiEJ5d7pru7BIMmxrFqy75A/exec';
-/* ============================================== */
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// >>> Firestore com long-polling (melhor para redes restritas) e persistência offline
-initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-  useFetchStreams: false,
-});
+// Firestore “amistoso” em redes restritas + persistência
+initializeFirestore(app, { experimentalForceLongPolling: true, useFetchStreams: false });
 const db = getFirestore(app);
-enableIndexedDbPersistence(db).catch(()=>{ /* ignora erro de multi-aba */ });
+enableIndexedDbPersistence(db).catch(() => {
+  // Se der conflito de abas ou o navegador bloquear IndexedDB (anônimo/privado), seguimos sem cache persistente.
+});
 
 const $ = (s) => document.querySelector(s);
 const toast = (t) => { const el = document.querySelector('#msg'); if (el) { el.textContent = t; setTimeout(()=> el.textContent='', 3000); } };
+const isOnline = () => navigator.onLine;
 
 /* ===== Helpers ===== */
 function formatTs(ts){
@@ -59,10 +56,10 @@ function ymdToInput(isoOrYmd){
 /* ====== Máscara para Número do Chip/ICCID ====== */
 function maskNumeroChip(value){
   const digits = String(value||'').replace(/\D/g,'');
-  if (digits.startsWith('89') && digits.length >= 15){ // ICCID geralmente 19-22
-    return digits.replace(/(\d{4})(?=\d)/g,'$1 ').trim(); // grupos de 4
+  if (digits.startsWith('89') && digits.length >= 15){ // ICCID
+    return digits.replace(/(\d{4})(?=\d)/g,'$1 ').trim();
   }
-  if (digits.length >= 11){ // celular BR
+  if (digits.length >= 11){
     const d = digits.slice(0,11);
     return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`;
   }
@@ -70,7 +67,6 @@ function maskNumeroChip(value){
     const d = digits.slice(0,10);
     return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6,10)}`;
   }
-  // fallback: agrupa de 4
   return digits.replace(/(\d{4})(?=\d)/g,'$1 ').trim();
 }
 
@@ -160,43 +156,51 @@ function normalizeFotos(fotos){
 async function buscarPorCPM(cpm){
   if(!cpm) return null;
   const ref = doc(db, 'registros', cpm.trim());
+
+  // Se estiver offline, tenta cache; se não existir cache, retorna null (sem erro)
+  if (!isOnline()){
+    try { const snap = await getDocFromCache(ref); return snap.exists() ? snap.data() : null; }
+    catch { return null; }
+  }
+
+  // Online: tenta rede e, se falhar por qualquer motivo, tenta cache
   try {
     const snap = await getDoc(ref);
     return snap.exists() ? snap.data() : null;
   } catch {
-    try {
-      const snap = await getDocFromCache(ref);
-      return snap.exists() ? snap.data() : null;
-    } catch { return null; }
+    try { const snap = await getDocFromCache(ref); return snap.exists() ? snap.data() : null; }
+    catch { return null; }
   }
 }
+
 async function cpmExiste(cpm){
   const ref = doc(db, 'registros', cpm);
-  try {
-    const snap = await getDoc(ref);
-    return snap.exists();
-  } catch {
-    try {
-      const snap = await getDocFromCache(ref);
-      return snap.exists();
-    } catch {
-      return false; // offline sem cache -> consideramos que NÃO existe
-    }
+  if (!isOnline()){
+    try { const snap = await getDocFromCache(ref); return snap.exists(); }
+    catch { return false; }
+  }
+  try { const snap = await getDoc(ref); return snap.exists(); }
+  catch {
+    try { const snap = await getDocFromCache(ref); return snap.exists(); }
+    catch { return false; }
   }
 }
+
 async function criarRegistro({
   cpm, status, observacoes, dataFabricacao, senhaCadeado,
   modemLogin, modemSenha, numeroChip, uid, email
 }){
   if(!cpm) throw new Error('Informe o CPM.');
-  if(await cpmExiste(cpm)) throw new Error('Este CPM já existe.');
 
-  // >>> Offline: não faz upload de fotos (deixe para anexar depois em "Editar")
+  // Offline: não tenta checar duplicidade (pode não haver cache). Apenas tenta salvar.
+  if (isOnline()){
+    if (await cpmExiste(cpm)) throw new Error('Este CPM já existe.');
+  }
+
+  // Offline: não faz upload de fotos (deixe para anexar depois em "Editar")
   let fotos = [];
-  if (navigator.onLine) {
+  if (isOnline()){
     fotos = await enviarFotosDrive(selectedFiles); // [{id,url}]
-  } else {
-    fotos = []; // sem upload quando offline
   }
 
   const refDoc = doc(db, 'registros', cpm);
@@ -213,21 +217,29 @@ async function criarRegistro({
     criadoEm: serverTimestamp(),
     criadoPor: { uid, email }
   };
+
+  // setDoc funciona offline (fila local)
   await setDoc(refDoc, data, { merge:true });
   return cpm;
 }
+
 async function listarUltimos(n=200){
   const qy = query(collection(db, 'registros'), orderBy('criadoEm','desc'), limit(n));
+
+  if (!isOnline()){
+    try { const snaps = await getDocsFromCache(qy); return snaps.docs.map(d => d.data()); }
+    catch { return []; }
+  }
+
   try {
     const snaps = await getDocs(qy);
     return snaps.docs.map(d => d.data());
   } catch {
-    try {
-      const snaps = await getDocsFromCache(qy);
-      return snaps.docs.map(d => d.data());
-    } catch { return []; }
+    try { const snaps = await getDocsFromCache(qy); return snaps.docs.map(d => d.data()); }
+    catch { return []; }
   }
 }
+
 async function atualizarRegistro(cpm, fields){
   await updateDoc(doc(db, 'registros', cpm), fields);
 }
@@ -265,6 +277,7 @@ function baixarCSVSelecionavel(dados, campos){
   a.download = `registros_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
+
 async function obterDadosParaExportar({cpms, status, qtd}){
   if (Array.isArray(cpms) && cpms.length){
     const out = [];
@@ -295,22 +308,21 @@ function initAuth(){
 
   $('#btnLogin')?.addEventListener('click', async ()=>{
     try{ await signInWithEmailAndPassword(auth, $('#loginEmail').value, $('#loginPass').value); }
-    catch(e){ toast('Falha ao entrar: '+e.message); }
+    catch(e){ toast('Falha ao entrar.'); }
   });
   $('#btnReset')?.addEventListener('click', async ()=>{
     try{ await sendPasswordResetEmail(auth, $('#loginEmail').value); toast('Link enviado.'); }
-    catch(e){ toast('Erro: '+e.message); }
+    catch(e){ toast('Erro ao enviar link.'); }
   });
   $('#btnRegister')?.addEventListener('click', async ()=>{
     try{ await createUserWithEmailAndPassword(auth, $('#regEmail').value, $('#regPass').value); }
-    catch(e){ toast('Erro ao registrar: '+e.message); }
+    catch(e){ toast('Erro ao registrar.'); }
   });
 
   onAuthStateChanged(auth, (user)=>{ if (user) location.href='dashboard.html'; });
 }
 
 /* ===== Edição (modal) ===== */
-let editing = null;
 let editFotos = [];      // [{id,url}]
 let editNovasFiles = []; // File[]
 function renderEditFotosExistentes(){
@@ -327,7 +339,7 @@ function renderEditFotosExistentes(){
       if (confirm('Remover esta foto do registro?')){
         const removed = editFotos.splice(i,1)[0];
         renderEditFotosExistentes();
-        if (removed?.id && navigator.onLine){ await deletarFotoDrive(removed.id); } // só online
+        if (removed?.id && isOnline()){ await deletarFotoDrive(removed.id); }
       }
     };
     wrap.appendChild(img); wrap.appendChild(btn);
@@ -360,7 +372,6 @@ function aplicarFiltrosOrdenacao(arr){
   const ord = $('#ordenarPor')?.value || 'data_desc';
 
   let out = [...arr];
-
   if (st !== 'Todos') out = out.filter(r => (r.status === st));
   if (termo){
     out = out.filter(r =>
@@ -368,7 +379,6 @@ function aplicarFiltrosOrdenacao(arr){
       (r.observacoes||'').toLowerCase().includes(termo)
     );
   }
-
   out.sort((a,b)=>{
     if (ord === 'data_desc') return formatTs(b.criadoEm) - formatTs(a.criadoEm);
     if (ord === 'data_asc')  return formatTs(a.criadoEm) - formatTs(b.criadoEm);
@@ -376,7 +386,6 @@ function aplicarFiltrosOrdenacao(arr){
     if (ord === 'cpm_desc')  return String(b.cpm||'').localeCompare(String(a.cpm||''), 'pt-BR', {numeric:true});
     return 0;
   });
-
   return out;
 }
 
@@ -409,7 +418,7 @@ function initApp(){
       const dados = await obterDadosParaExportar({cpms, status, qtd});
       baixarCSVSelecionavel(dados, campos);
       $('#exportModal')?.close();
-    }catch(e){ alert('Erro ao gerar CSV: ' + e.message); }
+    }catch{ alert('Erro ao gerar CSV.'); }
   });
 
   // modal editar: novas fotos
@@ -438,7 +447,7 @@ function initApp(){
     try{
       let novas = [];
       if (editNovasFiles.length){
-        if (!navigator.onLine){
+        if (!isOnline()){
           alert('Você está offline. As novas fotos serão ignoradas por enquanto.');
           novas = [];
         } else {
@@ -450,7 +459,7 @@ function initApp(){
       $('#editModal').close();
       cacheDados = await listarUltimos(200);
       renderLista(aplicarFiltrosOrdenacao(cacheDados));
-    }catch(e){ alert('Erro ao salvar edição: '+e.message); }
+    }catch{ alert('Erro ao salvar edição.'); }
   });
 
   // filtros e ordenação
@@ -504,10 +513,10 @@ function initApp(){
       renderPreview();
       cacheDados = await listarUltimos(200);
       renderLista(aplicarFiltrosOrdenacao(cacheDados));
-    }catch(e){ alert('Erro ao salvar: '+e.message); }
+    }catch{ alert('Erro ao salvar.'); }
   });
 
-  // BUSCAR por CPM
+  // BUSCAR por CPM (caixa dedicada)
   $('#btnBuscar')?.addEventListener('click', async ()=>{
     const cpm = ($('#buscaCPM')?.value||'').trim();
     if(!cpm) return;
@@ -515,7 +524,7 @@ function initApp(){
       const data = await buscarPorCPM(cpm);
       const out = document.querySelector('#resultado');
       if(out) out.textContent = data ? JSON.stringify(data, null, 2) : 'Não encontrado.';
-    }catch(e){ alert('Erro: '+e.message); }
+    }catch{ /* sem alert offline */ }
   });
 }
 
@@ -554,7 +563,6 @@ function renderLista(arr){
     ul.appendChild(li);
   });
 
-  // Troca de status
   ul.onchange = async (e)=>{
     const sel = e.target.closest('.sel-status'); if(!sel) return;
     const cpm = e.target.closest('li')?.dataset?.cpm;
@@ -562,10 +570,9 @@ function renderLista(arr){
       await atualizarRegistro(cpm, { status: sel.value });
       cacheDados = await listarUltimos(200);
       renderLista(aplicarFiltrosOrdenacao(cacheDados));
-    }catch(err){ alert('Erro ao atualizar: '+err.message); }
+    }catch{ /* silencia offline */ }
   };
 
-  // Editar/Excluir
   ul.onclick = async (e)=>{
     const li = e.target.closest('li'); if(!li) return;
     const cpm = li.dataset.cpm;
@@ -576,15 +583,14 @@ function renderLista(arr){
         await excluirRegistro(cpm);
         cacheDados = await listarUltimos(200);
         renderLista(aplicarFiltrosOrdenacao(cacheDados));
-      }catch(err){ alert('Erro ao excluir: '+err.message); }
+      }catch{ /* silencia offline */ }
       return;
     }
 
     if (e.target.closest('.btn-edit')){
       try{
         const data = await buscarPorCPM(cpm);
-        if(!data) return alert('Registro não encontrado.');
-        // preencher edição
+        if(!data) return alert('Registro não encontrado (sem cache offline).');
         editFotos = normalizeFotos(data.fotos||[]);
         editNovasFiles = [];
         $('#editCPM').value = data.cpm;
@@ -599,7 +605,7 @@ function renderLista(arr){
         renderEditFotosExistentes();
         renderEditPreviewNovas();
         $('#editModal').showModal();
-      }catch(err){ alert('Erro ao abrir edição: '+err.message); }
+      }catch{ /* silencia offline */ }
     }
   };
 }
@@ -608,5 +614,7 @@ function renderLista(arr){
 const page = document.body.dataset.page;
 if(page==='auth') initAuth();
 if(page==='app')  initApp();
+
+
 
 
